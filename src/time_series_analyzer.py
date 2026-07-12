@@ -103,3 +103,49 @@ def execute_adf_test(series: pd.Series, series_name: str) -> dict:
     except Exception as e:
         logger.error(f"Critical execution error during ADF testing on '{series_name}': {str(e)}")
         raise
+
+
+def load_geopolitical_events(filepath: str = "data/compiled_geopolitical_events.csv") -> pd.DataFrame:
+    """
+    Utility to load and validate the compiled macroeconomic/geopolitical event dataset artifact.
+    Automatically standardizes header formatting variations to ensure seamless parsing.
+    """
+    try:
+        logger.info(f"Loading event registry artifact from: {filepath}")
+        events_df = pd.read_csv(filepath)
+        
+        # 🛠️ Automatically clean and convert column names to look exactly like our target tracking definitions
+        # This transforms "Event ID", "event_id", "EVENT-ID" -> "Event_ID"
+        events_df.columns = (
+            events_df.columns.str.strip()
+            .str.replace(" ", "_")
+            .str.replace("-", "_")
+            .str.title()
+        )
+        
+        # Quick edge case correction: Make sure ID remains fully capitalized if title case turned it into 'Event_Id'
+        events_df.rename(columns={"Event_Id": "Event_ID"}, inplace=True)
+        
+        # Explicit mandatory check
+        required_cols = ["Event_ID", "Event_Start_Date", "Event_Name", "Shock_Classification"]
+        missing_cols = [col for col in required_cols if col not in events_df.columns]
+        
+        if missing_cols:
+            # Helpful debug message revealing what columns Python actually extracted from your file
+            raise TimeSeriesDataError(
+                f"Event artifact structural error. Missing: {missing_cols}. "
+                f"Found column headers in your file: {list(events_df.columns)}"
+            )
+            
+        # Standardize dates for accurate time-series overlay layering
+        events_df["Event_Start_Date"] = pd.to_datetime(events_df["Event_Start_Date"])
+        
+        logger.info(f"Successfully verified event artifact. Loaded {len(events_df)} historical shocks.")
+        return events_df
+        
+    except FileNotFoundError:
+        logger.error(f"Critical Event registry artifact not found at target location: {filepath}")
+        raise FileNotFoundError(f"Missing core project artifact. Please ensure file exists at: {filepath}")
+    except Exception as e:
+        logger.error(f"Failed parsing event artifact registry: {str(e)}")
+        raise

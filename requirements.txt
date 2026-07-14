@@ -5,3 +5,6 @@ pymc==5.25.1
 arviz==0.23.4
 ipykernel==7.2.0
 statsmodels
+
+# run this command to install required c++ compiler for PyTensor(PyMC) successfully
+conda install -c conda-forge m2w64-toolchain gxx_windows
